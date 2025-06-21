@@ -1,0 +1,41 @@
+version: '2.3'
+
+services:
+    dds_updater:
+        build: 
+            context: ../
+            dockerfile: ./dds_updater/Dockerfile
+        volumes:
+            - ./cyclonedds.xml:/cyclonedds.xml  
+        stdin_open: true # docker run -i
+        tty: true        # docker run -t
+        network_mode: service:husarnet
+        
+    turtle_sim:
+        image: osrf/ros:galactic-desktop
+        environment: 
+            - DISPLAY
+        volumes: 
+            - /tmp/.X11-unix:/tmp/.X11-unix:rw
+            - ./cyclonedds.xml:/cyclonedds.xml
+        command: 
+            - bash
+            - -c
+            - |
+                export CYCLONEDDS_URI=file:///cyclonedds.xml
+                ros2 run turtlesim turtlesim_node
+        network_mode: service:husarnet
+
+    husarnet:
+        image: husarnet/husarnet
+        restart: unless-stopped
+        volumes:
+            - /var/lib/husarnet  # This will persist your Husarnet Client keys, thus IP of the container will be stable/the same between (re)boots
+        sysctls:
+            - net.ipv6.conf.all.disable_ipv6=0  # Husarnet is using IPv6 for the internal connections
+        cap_add:
+            - NET_ADMIN
+        devices:
+            - /dev/net/tun
+        env_file: 
+            - ./.env  # create .env file in the same folder as Dockerfile and specify HOSTNAME and JOINCODE there
